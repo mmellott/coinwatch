@@ -22,10 +22,15 @@ class Pushover(object):
         return conn.getresponse().status
 
 if __name__ == '__main__':
-    import json
+    import argparse, json
+
+    parser = argparse.ArgumentParser(description='Send Pushover notification.')
+    parser.add_argument('message', metavar='MSG', nargs=argparse.REMAINDER,
+            help='message to send')
+    args = parser.parse_args()
 
     config = json.load(open('pushover.json'))
     paul_ryan = Pushover(config['token'], config['user'])
 
     # notice, no trailing newline
-    paul_ryan.notify('Obamacare is the law of the land...')
+    print(paul_ryan.notify(' '.join(args.message)))
