@@ -1,3 +1,4 @@
 *.json
 *.out
+screenlog.0
 __pycache__/
