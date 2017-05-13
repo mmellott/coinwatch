@@ -29,7 +29,7 @@ if __name__ == '__main__':
             help='message to send')
     args = parser.parse_args()
 
-    config = json.load(open('pushover.json'))
+    config = json.load(open('/root/coinwatch/pushover.json'))
     paul_ryan = Pushover(config['token'], config['user'])
 
     # notice, no trailing newline

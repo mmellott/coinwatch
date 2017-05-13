@@ -10,7 +10,7 @@ def login():
     page = ''
 
     try:
-        config = json.load(open('coins.json'))
+        config = json.load(open('/etc/coinwatch/coins.json'))
     except:
         config = {}
 
@@ -19,7 +19,7 @@ def login():
             del config[request.form['name']]
         else:
             config[request.form['name']] = float(request.form['amount'])
-        json.dump(config, open('coins.json', 'w'))
+        json.dump(config, open('/etc/coinwatch/coins.json', 'w'))
 
     page += str(config)
     page += '''
