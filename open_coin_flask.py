@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from gevent.wsgi import WSGIServer
 from coin_flask import app
