@@ -27,42 +27,21 @@ def update_coins():
 
 @pny.db_session
 def send_notifications(pushover_token_app):
-    for portfolio in Portfolio.select():
-        notify = False
-        drift = portfolio.drift()
-        value_usd = portfolio.value_usd()
+    for notification in Notification.select():
+        if notification.check():
+            msg = notification.generate()
+            print(msg)
 
-        report = {}
-        for notification in portfolio.notifications:
-            if notification.name == 'drift':
-                current = drift
-            elif notification.name == 'value_usd':
-                current = value_usd
-            else:
-                print('Unsupported notification: {}'.format(notification.name))
-                continue
-
-            if notification.last_noted is None:
-                difference = 0
-                notify = True
-            else:
-                difference = current - notification.last_noted
-                if abs(difference) >= notification.threshold:
-                    notify = True
-            report[notification.name] = (current, difference)
-
-        if notify:
-            for notification in portfolio.notifications:
-                notification.last_noted = report[notification.name][0]
-
-            pushover.Pushover(pushover_token_app,
-                    portfolio.pushover_token).notify(str(report))
+            if pushover_token_app is not None:
+                pushover.Pushover(pushover_token_app,
+                        notification.portfolio.pushover_token).notify(str(msg))
 
 if __name__ == '__main__':
     update_coins()
 
     try:
         pushover_token_app = sys.argv[1]
-        send_notifications(pushover_token_app)
-    except KeyError:
-        pass
+    except IndexError:
+        pushover_token_app = None
+
+    send_notifications(pushover_token_app)

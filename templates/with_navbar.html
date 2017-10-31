@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block navbar %}
+<nav class="navbar navbar-dark bg-dark">
+  <span class="navbar-brand mr-auto h1">coinwatch</span>
+  <a class="nav-link" href="/{{ pushover_token }}">Report</a>
+  <a class="nav-link" href="/{{ pushover_token }}/portfolio">Portfolio</a>
+  <a class="nav-link" href="/{{ pushover_token }}/notifications">Notifications</a>
+</nav>
+{% endblock %}

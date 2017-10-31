@@ -1,0 +1,63 @@
+{% extends "with_navbar.html" %}
+{% block body %}
+  <div class="container">
+    <h2>Portfolio</h2>
+
+    <form method="post">
+      <div class="form-row align-items-center mb-3">
+        <div class="col-auto">
+          <select class="form-control" name="coin_id">
+            <option disabled selected value>Choose coin...</option>
+            {% for coin in coins %}
+              <option value="{{ coin.id }}">{{ coin.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="number" step="any" class="form-control" name="amount" placeholder="Amount">
+        </div>
+        <div class="col-auto">
+          <input type="number" step="any" class="form-control" name="weight" placeholder="Weight">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </div>
+    </form>
+
+    <table class="table border">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Amount</th>
+          <th scope="col">Weight</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for asset in assets %}
+          <tr>
+            <td>{{ asset.coin.name }}</td>
+            <td>{{ asset.amount }}</td>
+            <td>{{ asset.weight }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <form method="post">
+      <div class="form-row align-items-center">
+        <div class="col-auto">
+          <select class="form-control" name="coin_id">
+            <option disabled selected value>Choose coin...</option>
+            {% for asset in assets %}
+              <option value="{{ asset.coin.id }}">{{ asset.coin.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-danger" name="delete">Delete</button>
+        </div>
+      </div>
+    </form>
+  </div>
+{% endblock %}

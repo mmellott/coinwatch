@@ -1,0 +1,62 @@
+{% extends "with_navbar.html" %}
+{% block body %}
+  <div class="container">
+    <h2>Notifications</h2>
+
+    <form method="post">
+      <div class="form-row align-items-center mb-3">
+        <div class="col-auto">
+          <select class="form-control" name="ntype">
+            <option disabled selected value>Choose notification type...</option>
+            {% for ntype in ntypes %}
+              <option value="{{ ntype[0] }}">{{ ntype[1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="number" step="any" class="form-control" name="threshold" placeholder="Threshold">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary">Add</button>
+        </div>
+      </div>
+    </form>
+
+    <table class="table border">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Type</th>
+          <th scope="col">Threshold</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nbrief in nbriefs %}
+          <tr>
+            <td>{{ nbrief[0] }}</td>
+            <td>{{ nbrief[1] }}</td>
+            <td>{{ nbrief[2] }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <form method="post">
+      <div class="form-row align-items-center">
+        <div class="col-auto">
+          <select class="form-control" name="nid">
+            <option disabled selected value>Choose notification ID...</option>
+            {% for nbrief in nbriefs %}
+              <option value="{{ nbrief[0] }}">{{ nbrief[0] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-danger" name="delete">Delete</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  </div>
+{% endblock %}

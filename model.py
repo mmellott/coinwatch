@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 from pony.orm import Database, PrimaryKey, Required, Optional, Set
 
 db = Database(provider='sqlite', filename='coinwatch.sqlite', create_db=True)
@@ -39,11 +42,62 @@ class Asset(db.Entity):
         return self.coin.price_usd * self.amount
 
 class Notification(db.Entity):
-    name = Required(str)
+    id = PrimaryKey(int, auto=True)
     portfolio = Required('Portfolio')
-    last_noted = Optional(float)
+
+class NotificationThreshold(Notification):
     threshold = Required(float)
 
-    PrimaryKey(name, portfolio)
+class NotificationChange(NotificationThreshold):
+    last_noted = Optional(float)
+
+    def changed(self, parameter):
+        if self.last_noted is not None:
+            return abs(parameter - self.last_noted) > self.threshold
+        else:
+            return True
+
+class NotificationThresholdDrift(NotificationThreshold):
+    long_name = "Drift Threshold"
+
+    def check(self):
+        return self.portfolio.drift() > self.threshold
+
+    def generate(self):
+        return "Drift is {:.2f}%".format(self.portfolio.drift())
+
+class NotificationChangeDrift(NotificationChange):
+    long_name = "Drift Change"
+
+    def check(self):
+        return self.changed(self.portfolio.drift())
+
+    def generate(self):
+        drift = self.portfolio.drift()
+        msg = "Drift is {:.2f}%".format(drift)
+        self.last_noted = drift
+        return msg
+
+class NotificationThresholdValueUsd(NotificationThreshold):
+    long_name = "Value USD Threshold"
+
+    def check(self):
+        return self.portfolio.value_usd() > self.threshold
+
+    def generate(self):
+        return "Value USD is {}".format(locale.currency(
+                self.portfolio.value_usd()))
+
+class NotificationChangeValueUsd(NotificationChange):
+    long_name = "Value USD Change"
+
+    def check(self):
+        return self.changed(self.portfolio.value_usd())
+
+    def generate(self):
+        value_usd = self.portfolio.value_usd()
+        msg = "Value USD is {}".format(locale.currency(value_usd))
+        self.last_noted = value_usd
+        return msg
 
 db.generate_mapping(create_tables=True)

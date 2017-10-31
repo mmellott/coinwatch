@@ -1,8 +1,12 @@
 from model import Coin, Portfolio, Asset, Notification
+import model
+
+import locale
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
 import pony.orm as pny
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, render_template
 app = Flask(__name__)
 
 def get_portfolio(pushover_token):
@@ -15,87 +19,110 @@ def get_portfolio(pushover_token):
 
 @app.route('/')
 def root():
-    return """
-        <iframe width="1120" height="630"
-                src="https://www.youtube.com/embed/OU_5XaVULgw" frameborder="0"
-                allowfullscreen>
-        </iframe>
-    """
+    return render_template('index.html')
+
+@app.route('/<pushover_token>', methods=['GET', 'POST'])
+@pny.db_session
+def report(pushover_token):
+    portfolio = get_portfolio(pushover_token)
+    value_usd = locale.currency(portfolio.value_usd())
+    drift = '{:.2f}%'.format(portfolio.drift())
+
+    return render_template('report.html', pushover_token=pushover_token,
+            value_usd=value_usd, drift=drift)
 
 def get_nullable_from_form(arg, arg_type=str):
-    if arg in request.form:
-        return arg_type(request.form[arg])
-    else:
-        return None
+    try:
+        # Accessing missing form argument will NOT generate KeyError, so check
+        if arg in request.form:
+            return arg_type(request.form[arg])
+    except ValueError:
+        pass
+    return None
 
-def json_error(msg):
-    return jsonify({'error': msg})
-
-@app.route('/<pushover_token>/assets', methods=['GET', 'POST'])
+@app.route('/<pushover_token>/portfolio', methods=['GET', 'POST'])
 @pny.db_session
-def assets(pushover_token):
+def portfolio(pushover_token):
     portfolio = get_portfolio(pushover_token)
 
-    try:
-        coin_id = get_nullable_from_form('coin_id')
-        amount = get_nullable_from_form('amount', float)
-        weight = get_nullable_from_form('weight', float)
-    except ValueError as e:
-        return json_error(str(e))
-
+    # Update portfolio if method is POST
     if request.method == 'POST':
-        if coin_id is None:
-            return json_error('coin_id argument is required for method POST')
+        coin_id = get_nullable_from_form('coin_id')
 
-        asset = Asset.get(coin=coin_id, portfolio=pushover_token)
-        if asset is None:
-            if amount is None or weight is None:
-                amount = 0
+        if coin_id is not None:
+            asset = Asset.get(coin=coin_id, portfolio=pushover_token)
 
-            if weight is None:
-                weight = 0
+            if 'delete' in request.form:
+                asset.delete()
+            else:
+                amount = get_nullable_from_form('amount', float)
+                weight = get_nullable_from_form('weight', float)
 
-            Asset(coin=coin_id, portfolio=pushover_token, amount=amount,
-                    weight=weight)
-        else:
-            if amount is not None:
-                asset.amount = amount
+                if asset is None:
+                    if amount is None:
+                        amount = 0
 
-            if weight is not None:
-                asset.weight = weight
+                    if weight is None:
+                        weight = 0
 
-    return jsonify([a.to_dict() for a in portfolio.assets])
+                    Asset(coin=coin_id, portfolio=pushover_token, amount=amount,
+                            weight=weight)
+                else:
+                    if amount is not None:
+                        asset.amount = amount
+
+                    if weight is not None:
+                        asset.weight = weight
+
+    # Display portfolio
+    assets = []
+    for asset in Asset.select(
+            lambda x: x.portfolio.pushover_token == pushover_token).order_by(
+            lambda x: x.coin.name):
+        asset_dict = asset.to_dict()
+        asset_dict['coin'] = asset.coin.to_dict()
+        assets.append(asset_dict)
+
+    coins = [c.to_dict() for c in Coin.select()]
+
+    return render_template('portfolio.html', pushover_token=pushover_token,
+            assets=assets, coins=coins)
 
 @app.route('/<pushover_token>/notifications', methods=['GET', 'POST'])
 @pny.db_session
 def notifications(pushover_token):
     portfolio = get_portfolio(pushover_token)
 
-    try:
-        name = get_nullable_from_form('name')
-        threshold = get_nullable_from_form('threshold', float)
-    except ValueError as e:
-        return json_error(str(e))
+    notification_classes = {
+            "drift_threshold": model.NotificationThresholdDrift,
+            "drift_change": model.NotificationChangeDrift,
+            "value_usd_threshold": model.NotificationThresholdValueUsd,
+            "value_usd_change": model.NotificationChangeValueUsd }
 
+    # Update notifications if method is POST
     if request.method == 'POST':
-        if name is None:
-            return json_error('name argument is required for method POST')
-
-        if threshold is None:
-            return json_error('threshold argument is required for method POST')
-
-        notification = Notification.get(name=name, portfolio=pushover_token)
-        if notification is None:
-            Notification(name=name, portfolio=pushover_token,
-                    threshold=threshold)
+        if 'delete' in request.form:
+            nid = get_nullable_from_form('nid')
+            if nid is not None:
+                Notification.get(id=nid).delete()
         else:
-            notification.threshold = threshold
+            ntype = get_nullable_from_form('ntype')
+            threshold = get_nullable_from_form('threshold', float)
 
-    return jsonify([n.to_dict() for n in portfolio.notifications])
+            if ntype is not None and threshold is not None:
+                notification_classes[ntype](portfolio=portfolio,
+                        threshold=threshold)
 
-@app.route('/<pushover_token>/report')
-@pny.db_session
-def report(pushover_token):
-    portfolio = get_portfolio(pushover_token)
-    return jsonify({'drift': portfolio.drift(),
-            'total_value_usd': portfolio.value_usd()})
+    # Display notifications
+    ntypes = zip(notification_classes.keys(),
+            [nclass.long_name for nclass in notification_classes.values()])
+
+    nbriefs = []
+    for notification in Notification.select(
+            lambda x: x.portfolio.pushover_token == pushover_token).order_by(
+            lambda x: x.id):
+        nbriefs.append((notification.id, notification.long_name,
+                notification.threshold))
+
+    return render_template('notifications.html', pushover_token=pushover_token,
+            ntypes=ntypes, nbriefs=nbriefs)
